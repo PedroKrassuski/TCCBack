@@ -1,142 +1,97 @@
 import express from "express";
-import mysql from "mysql";
+import sql from 'mssql';
 import cors from "cors";
 import morgan from "morgan";
+import userRouter from './Routes/usuario.js';
+//C:\Users\jlpar\OneDrive\Documentos\GitHub\TCC\TCCBack\routes\usuario.js
+//import userRouter from "./routes/users";
+
+//const sql = sql();
 
 const app = express();
-app.use(cors());
-app.use(express.json());
-app.use(morgan("dev"));
+//const userRouter = require("./routes/users");
+//app.use(express.static("public"));
+//app.use(express.urlencoded({ extended: true }));
+//app.use(express.json());
+app.use("/usuarios", userRouter);
 
-const db = mysql.createConnection({
-  host: "localhost",
-  user: "root",
-  password: "",
-  database: "signup",
-});
-
-app.post("/signup", (req, res) => {
-  const sql = "INSERT INTO login (companyName, email, password) VALUES (?)";
-  const values = [req.body.companyName, req.body.email, req.body.password];
-  db.query(sql, [values], (err, data) => {
-    if (err) {
-      return res.json("error");
+const config = {
+    user: 'devtcc',
+    password: 'Tcc2024*',
+    server: 'devtcc.database.windows.net',
+    options: {
+      database: 'devtcc',
+      encrypt: true
     }
-    return res.json(data);
-  });
-});
+  };
 
-app.post("/login", (req, res) => {
-  const sql = "SELECT * FROM login WHERE email = ? AND password = ?";
-  db.query(sql, [req.body.email, req.body.password], (err, data) => {
-    if (err) {
-      return res.json("error");
-    }
-    if (data.length > 0) {
-      return res.json("Sucess");
-    } else {
-      return res.json("Failed");
-    }
-  });
-});
+console.log("Starting...");
 
-app.post("/validacao", (req, res) => {
-  const sql = "SELECT * FROM validacao WHERE name = ? AND password = ?";
-  db.query(sql, [req.body.name, req.body.password], (err, data) => {
-    if (err) {
-      return res.json("error");
-    }
-    if (data.length > 0) {
-      return res.json("Sucess");
-    } else {
-      return res.json("Failed");
-    }
-  });
-});
+const executeQuery = async (query) => {
+  try {
+    // Conecta ao banco de dados
+    await sql.connect(config);
 
-// app.post("/cadastroArtefato", (req, res) => {
-//   let { nome, descricao, tipo_reuso, arquivo } = req.body;
-//   arquivo = "teste";
-//   const sql =
-//     "INSERT INTO artefatos (nome, descricao, tipo_reuso, arquivo) VALUES (?, ?, ?, ?)";
-//   db.query(sql, [nome, descricao, tipo_reuso, arquivo], (err, data) => {
-//     if (err) {
-//       console.log(err);
-//       return res.json("error");
-//     }
-//     return res.json(data);
-//   });
-// });
+    // Executa a consulta
+    const result = await sql.query(query);
 
-app.post("/cadastroArtefato", (req, res) => {
-  let { nome, descricaoBreve, descricaoDetalhada, tipoReuso, versao } =
-    req.body;
-  const validacao = "Pendente";
-  const downloads = 0;
+    // Retorna o resultado da consulta
+    return result.recordset;
+  } catch (err) {
+    // Lida com erros
+    console.error('Erro na consulta:', err.message);
+    throw err;
+  } finally {
+    // Fecha a conexão com o banco de dados
+    await sql.close();
+  }
+};
 
-  const sql = `
-    INSERT INTO artefato (nome, descricaoBreve, descricaoDetalhada, tipoReuso, validacao, downloads, dataPublicacao, versao) 
-    VALUES (?, ?, ?, ?, ?, ?, DATE_FORMAT(NOW(), '%Y-%m-%d'), ?)
-  `;
+//app.use("/usuarios", userRouter);
 
-  db.query(
-    sql,
-    [
-      nome,
-      descricaoBreve,
-      descricaoDetalhada,
-      tipoReuso,
-      validacao,
-      downloads,
-      versao,
-    ],
-    (err, result) => {
-      if (err) {
-        console.log(err);
-        return res.status(500).json({ error: "Database insertion error" });
-      }
-      console.log("Artefato cadastrado com sucesso!");
-      return res
-        .status(200)
-        .json({ message: "Artefato cadastrado com sucesso!" });
-    }
-  );
-});
-
-app.get("/consultarArtefatos", (req, res) => {
-  const sql = "SELECT * FROM artefato";
-  db.query(sql, (err, data) => {
-    if (err) return app.json(err);
-    return res.json(data);
-  });
-});
-
-app.put("/aprovarArtefato/:id", (req, res) => {
-  const id = req.params.id;
-  const sql = "UPDATE artefato SET validacao = 'Aprovado' WHERE id = ?";
-  db.query(sql, id, (err, result) => {
-    if (err) return res.json(err);
-    return res.json({ message: "Artefato aprovado com sucesso!" });
-  });
-});
-
-app.put("/recusarArtefato/:id", (req, res) => {
-  const id = req.params.id;
-  const sql = "UPDATE artefato SET validacao = 'Recusado' WHERE id = ?";
-  db.query(sql, id, (err, result) => {
-    if (err) return res.json(err);
-    return res.json({ message: "Artefato recusado com sucesso!" });
-  });
-});
-
-app.get("/validarArtefatos", (req, res) => {
-  const sql = "SELECT * FROM artefato WHERE validacao = 'Pendente'";
-  db.query(sql, (err, data) => {
-    if (err) return res.json(err);
-    return res.json(data);
-  });
-});
+function logger(req, res, next) {
+  console.log(req);
+  next();
+};
 
 app.listen(8081, () => {
-  console.log("listening");
-});
+    console.log("listening");
+  });
+
+export { sql, executeQuery};
+//export { sql};
+
+//connect();
+
+/*async function connect() {
+    try {
+        var poolConnection = await sql.connect(config);
+
+        console.log("Reading rows from the Table...");
+        var resultSet = await poolConnection.request().query(`SELECT * FROM [devtcc].[dbo].[Usuario] WHERE id = 3`);
+        // var resultSet = await poolConnection.request().query(`INSERT INTO [dbo].[Usuario](nome, matricula, email, senha, telefone, status)
+                                                            // VALUES ('joão komarcheuski', 88888888, 'joao.komar@gmail.com', '12345678', '41777774444', 1)`);
+        //console.log(`${resultSet.recordset.length} rows returned.`);
+        //console.log(resultSet.output);
+
+        // output column headers
+        //var columns = "";
+       // for (var column in resultSet.recordset.columns) {
+       //     columns += column + ", ";
+       // }
+       // console.log("%s\t", columns.substring(0, columns.length - 2));
+
+        // ouput row contents from default record set
+        resultSet.recordset.forEach(row => {
+        //    console.log("%s\t%s", row.CategoryName, row.ProductName);
+            console.log(row.nome);
+        });
+       
+
+        // close connection only when we're certain application is finished
+        poolConnection.close();
+    } catch (err) {
+        console.error(err.message);
+    }
+}*/
+
